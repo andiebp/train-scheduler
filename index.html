@@ -1,14 +1,11 @@
 <!DOCTYPE html>
-
+<html>
 <head>
-    <style type="text/css"></style>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-</head>
-
-<body>
     <script src="https://www.gstatic.com/firebasejs/4.3.0/firebase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <script>
         // Initialize Firebase
         var config = {
@@ -20,20 +17,28 @@
             messagingSenderId: "650319596674"
         };
         firebase.initializeApp(config);
-
     </script>
+    <style type="text/css">
+        .panel>.panel-heading {
+            background-color: #337ab7;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
 
+<body>
     <div class="container">
         <div class="jumbotron">
             <h1>Anytime is Train Time</h1>
             <p>Choo Choo. Chee Chee!</p>
         </div>
-
         <div class="panel-default panel">
-            <div class="panel-heading">Current Train Schedule
+            <div class="panel-heading">
+                Current Train Schedule
             </div>
-            <div class="panel-body">
-                <table class="table table-hover">
+            <div class="panel-body table-responsive">
+                <table id="schedule" class="table table-hover">
                     <thead>
                         <tr>
                             <th>Train Name</th>
@@ -43,88 +48,76 @@
                             <th>Minutes Away</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr>
-                            <tr id="name-display"></tr>
-                            <tr id="destination-display"></tr>
-                            <th id="frequency-display"></th>
-                            <th id="next-arrival"></th>
-                            <th id="minutes-away"></th>
-                        </tr>
-                    </tbody>
+                    <tbody></tbody>
                 </table>
-
             </div>
-
-
         </div>
         <div class="panel-default panel">
-            <div class="panel-heading">Add Train
+            <div class="panel-heading">
+                Add Train
             </div>
-            <div class="entry-form">
+            <div class="panel-body entry-form">
                 <form>
                     <div class="form-group">
                         <label for="name">Train Name</label>
-                        <input type="text" class="form-control" id="name">
+                        <input type="text" class="form-control" id="name" />
                     </div>
                     <div class="form-group">
-                        <label for="role">Destination</label>
-                        <input type="text" class="form-control" id="role">
+                        <label for="destination">Destination</label>
+                        <input type="text" class="form-control" id="destination" />
                     </div>
                     <div class="form-group">
                         <label for="start">First Train Time (HH:mm - military time)</label>
-                        <input type="text" class="form-control" id="start">
+                        <input type="text" class="form-control" id="start" />
                     </div>
                     <div class="form-group">
                         <label for="rate">Frequency (min)</label>
-                        <input type="number" class="form-control" id="rate">
+                        <input type="number" class="form-control" id="rate" min="1" />
                     </div>
-                    <button type="submit" class="btn btn-default" id="submit-button">Submit</button>
+                    <button type="submit" class="btn btn-default btn-primary" id="submit-button">Submit</button>
                 </form>
             </div>
         </div>
-
     </div>
-
     <script type="text/javascript">
         var database = firebase.database();
-
-        $("#submit-button").click(function() {
+        var $table = $('#schedule tbody');
+        $("#submit-button").click(function(event) {
             event.preventDefault();
-            var newName = $("#name").val();
-            var newDestination = $("#role").val();
-            var newStart = moment($("#start").val().trim(), "DD/MM/YY").format("X");
-            var newRate = $("#rate").val();
-            var emp = {
-                name: newName,
-                role: newRole,
-                start: newStart,
-                rate: newRate
+            var train = {
+                name: $("#name").val(),
+                destination: $("#destination").val(),
+                start: moment($("#start").val().trim(), "HH:mm").unix(),
+                rate: parseFloat($("#rate").val())
             }
-            console.log(emp);
+            //console.log("New Train:", train);
 
-            database.ref().push(emp);
-            alert("Train added");
+            //PUSHES JSON ELEMENT TO DATABASE
+            database.ref().push(train);
 
+            //CLEARS FORM
             $("#name").val("");
-            $("#role").val("");
+            $("#destination").val("");
             $("#start").val("");
             $("#rate").val("");
         });
 
         database.ref().on("child_added", function(childSnapshot, prevChildKey) {
-            console.log(childSnapshot.val());
+            var rowData = childSnapshot.val();
+            //console.log("DB Train:", rowData);
+            var nextTime = moment(rowData.start);
+            var rate = moment.duration(rowData.rate, "minutes");
+            while (nextTime.isBefore(moment())) {
+                nextTime = nextTime.add(rate);
+            }
 
-            $("#name-display").append("<tr>childSnapshot.val().name</tr>");
-            $("#role-display").append(childSnapshot.val().role);
-            $("#start-display").append(childSnapshot.val().start);
-            //$("#months-display").html(childSnapshot.val().month);
-            $("#rate-display").append(childSnapshot.val().rate);
-            //$("#bill-display").html(childSnapshot.val().bill);
+            var row = [rowData.name, rowData.destination, rowData.rate, nextTime.format("LT"), nextTime.diff(moment(), "minutes")];
+            row = row.map(function(data) {
+                return "<td>" + data + "</td>";
+            });
+            row = "<tr>" + row.join('') + "</tr>";
+            $table.prepend($(row));
         });
-
     </script>
 </body>
-
-
 </html>
